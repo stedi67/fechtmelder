@@ -29,8 +29,6 @@ class FlorettStatus:
     def __init__(self, color):
         self.color = color
         self.reset()
-        self.last_spitze = None
-        self.last_kontakt = None
 
     def check(self, check_values):
         # mit timer sind wir mindestens 15 ms mit geschlossener Spitze
@@ -38,24 +36,17 @@ class FlorettStatus:
             spitze, kontakt = check_values[:2]
         else:
             spitze, kontakt = check_values[2:]
-        self.last_spitze, self.last_kontakt = spitze, kontakt
-        if is_off(spitze) and self.treffer_start is not None:
-            self.status = 'treffer_ok'
-        # Noch kein timer
-        elif is_off(spitze):
+        if is_off(spitze) and self.treffer_start is None:
             self.treffer_start = utime.ticks_ms()
+        # Noch kein timer
         if is_on(kontakt) and self.kontakt_start is None:
             self.kontakt_start = utime.ticks_ms()
         elif is_on(kontakt):
-            if self.status == 'treffer_ok':
-                self.status = 'treffer_und_kontakt'
+            if self.treffer_start:
                 if self.treffer_und_kontakt_start is None:
                     self.treffer_und_kontakt_start = utime.ticks_ms()
-            else:
-                self.status = 'kontakt'
 
     def reset(self):
-        self.status = 'init'
         self.treffer_start = None
         self.kontakt_start = None
         self.treffer_und_kontakt_start = None
@@ -83,62 +74,17 @@ class FechtController:
         utime.sleep(.1)
 
     def reset(self):
+        print('reset')
         self.reset_buzzer()
         self.led_gruen_farbe.off()
         self.led_gruen_weiss.off()
         self.led_rot_farbe.off()
         self.led_rot_weiss.off()
 
-    def test_led(self, led):
-        led.on()
-        utime.sleep(1)
-        led.off()
-
     def buzz(self, time_delta):
         self.buzzer.value(0)
         utime.sleep(time_delta)
         self.buzzer.value(1)
-
-    def test(self):
-        self.buzzer.value(0)
-        utime.sleep(1)
-        self.reset_buzzer()
-        self.test_led(self.led_gruen_farbe)
-        self.test_led(self.led_gruen_weiss)
-        self.test_led(self.led_rot_farbe)
-        self.test_led(self.led_rot_weiss)
-
-    def test_contact(self):
-        while True:
-            self.tick()
-            if self.button.value() > 0.6:
-                break
-            values = self.value_check()
-            if values[0] < 0.4:
-                self.led_gruen_weiss.on()
-            elif values[0] > 0.6:
-                self.led_gruen_weiss.off()
-            if values[1] < 0.4:
-                self.led_gruen_farbe.off()
-            elif values[1] > 0.6:
-                self.led_gruen_farbe.on()
-            if values[2] < 0.4:
-                self.led_rot_weiss.on()
-            elif values[2] > 0.6:
-                self.led_rot_weiss.off()
-            if values[3] < 0.4:
-                self.led_rot_farbe.off()
-            elif values[3] > 0.6:
-                self.led_rot_farbe.on()
-
-    def test_taster(self):
-        while True:
-            self.tick()
-            if self.button.value() > 0.6:
-                break
-        self.led_system.on()
-        utime.sleep(2)
-        self.led_system.off()
 
     def run_florett(self):
         florett_gruen = FlorettStatus(GREEN)
@@ -173,10 +119,8 @@ class FechtController:
             self.run_florett()
             if self.button.value() > 0.6:
                 break
-            self.buzz(2)
-            while True:
-                if self.button.value() > 0.6:
-                    break
+            self.buzz(1)
+            utime.sleep(3)
             self.reset()
 
     def tick(self):
@@ -189,6 +133,51 @@ class FechtController:
             self.rot_spitze.value(),
             self.rot_kontakt.value(),
         )
+
+    # test code
+
+    def test(self):
+        self.test_led(self.led_gruen_farbe)
+        self.test_led(self.led_gruen_weiss)
+        self.test_led(self.led_rot_farbe)
+        self.test_led(self.led_rot_weiss)
+
+    def test_led(self, led):
+        led.on()
+        utime.sleep(1)
+        led.off()
+
+    def test_contact(self):
+        while True:
+            self.tick()
+            if self.button.value() > 0.6:
+                break
+            values = self.value_check()
+            if values[0] < 0.4:
+                self.led_gruen_weiss.on()
+            elif values[0] > 0.6:
+                self.led_gruen_weiss.off()
+            if values[1] < 0.4:
+                self.led_gruen_farbe.off()
+            elif values[1] > 0.6:
+                self.led_gruen_farbe.on()
+            if values[2] < 0.4:
+                self.led_rot_weiss.on()
+            elif values[2] > 0.6:
+                self.led_rot_weiss.off()
+            if values[3] < 0.4:
+                self.led_rot_farbe.off()
+            elif values[3] > 0.6:
+                self.led_rot_farbe.on()
+
+    def test_taster(self):
+        while True:
+            self.tick()
+            if self.button.value() > 0.6:
+                break
+        self.led_system.on()
+        utime.sleep(2)
+        self.led_system.off()
 
 
 def evaluate_florett(florett_gruen, florett_rot, check_values):
@@ -214,8 +203,11 @@ def evaluate_florett(florett_gruen, florett_rot, check_values):
     return None, None, None, None
 
 
-def fechtmelder():
+def run():
     controller = FechtController()
     controller.test()
+    controller.run()
 
-    return controller
+
+if __name__ == '__main__':
+    run()
